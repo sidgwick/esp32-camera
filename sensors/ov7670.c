@@ -115,6 +115,13 @@ static struct regval_list ov7670_fmt_rgb565[] = {
 	{ 0xff,     0xff                        },  /* END MARKER */
 };
 
+static struct regval_list ov7670_fmt_raw[] = {
+    {COM7, 0x01},  /* bayer RAW mode */
+    {COM13, 0x08}, /* No gamma, magic rsvd bit */
+    {COM16, 0x3d}, /* Edge enhancement, denoise */
+    {REG76, 0xe1}, /* Pix correction, magic rsvd */
+    {0xff, 0xff},  /* END MARKER */
+};
 
 static struct regval_list ov7670_vga[] = {
     { COM3,                 0x00 },
@@ -165,6 +172,19 @@ int ret = 0;
 		vals++;
 	}
 
+    return ret;
+}
+
+static int set_reg(sensor_t *sensor, int reg, int mask, int value) {
+    int ret = SCCB_Write(sensor->slv_addr, (uint8_t)reg, (uint8_t)value);
+    ESP_LOGD(TAG, "set reg %02X, W(%02X) R(%02X)", reg,
+             value, SCCB_Read(sensor->slv_addr, reg));
+
+    return ret;
+}
+
+static int get_reg(sensor_t *sensor, int reg, int mask) {
+    int ret = SCCB_Read(sensor->slv_addr, (uint8_t)reg);
     return ret;
 }
 
@@ -227,7 +247,11 @@ int ret;
         case PIXFORMAT_RGB888:
             ret = ov7670_write_array(sensor, ov7670_fmt_rgb565);
         break;
- 
+
+        case PIXFORMAT_RAW:
+            ret = ov7670_write_array(sensor, ov7670_fmt_raw);
+        break;
+
         case PIXFORMAT_YUV422:
         case PIXFORMAT_GRAYSCALE:
 	    default:
@@ -424,6 +448,8 @@ int ov7670_init(sensor_t *sensor)
     sensor->set_exposure_ctrl = set_exposure_ctrl;
     sensor->set_hmirror = set_hmirror;
     sensor->set_vflip = set_vflip;
+    sensor->set_reg = set_reg;
+    sensor->get_reg = get_reg;
 
     //not supported
     sensor->set_brightness= set_dummy;
